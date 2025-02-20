@@ -1,0 +1,188 @@
+---
+title: "Homework 4"
+author: "Harshetha Haritharan - hh29685"
+output: pdf_document
+date: "2025-02-20"
+---
+GitHub Repository: CHANGE!! 
+
+```{r, include=FALSE}
+# Import necessary libraries
+library(ggplot2)
+library(dplyr)
+library(tidyverse)
+library(mosaic)
+```
+
+#  Problem 1
+```{r, echo=FALSE}
+# Set seed 
+set.seed(123)
+n_trades <- 2021
+baseline_rate <- 0.024
+observed_flagged <- 70
+n_simulations <- 100000
+
+# Monte Carlo simulation
+simulated_flags <- rbinom(n_simulations, size = n_trades, prob = baseline_rate)
+
+# Calculate p-value
+p_value <- mean(simulated_flags >= observed_flagged)
+p_value
+
+# Plot of the probability distribution 
+ggplot(data.frame(simulated_flags), aes(simulated_flags)) +
+  geom_histogram(binwidth = 1, fill = "pink", color = "black") +
+  geom_vline(xintercept = observed_flagged, color = "red", linetype = "solid") +labs(title = "Probability Distribution of Flagged Trades Under Null Hypothesis",x = "Number of Flagged Trades",y = "Count")
+```
+The null hypothesis I tested is that over the long run, securities trades from the Iron Bank are flagged at the same 2.4% baseline rate as that of other traders. The test statistic I used to measure evidence against the null hypothesis the number of flagged trades observed in the 2021, which is 70. After calculating a p-value of 0.00204, I determined that this value is moderately lower that the common significance level of 0.05, therefore there is evidence to reject the null hypothesis which suggests that observed number of flagged trades is unlikely to be because of random chance and rather because a cluster of trades is being flagged at a rate higher than the baseline rate of 2.4%
+
+#  Problem 2
+```{r, echo=FALSE}
+
+# Set seed
+set.seed(456)
+
+n_inspections <- 50
+baseline_violation_rate <- 0.03
+observed_violations <- 8
+n_simulations <- 100000
+
+# Monte Carlo simulation
+simulated_violations <- rbinom(n_simulations, size = n_inspections, prob = baseline_violation_rate)
+
+# Calculate p-value
+p_value <- mean(simulated_violations >= observed_violations)
+p_value
+
+# Plot of the probability distribution 
+ggplot(data.frame(simulated_violations), aes(simulated_violations)) +
+  geom_histogram(binwidth = 1, fill = "lavender", color = "black") +
+  geom_vline(xintercept = observed_violations, color = "red", linetype = "solid") +labs(title = "Probability Distribution of Health Code Violations Under Null Hypothesis",x = "Number of Violations",y = "Count")
+```
+The null hypothesis I tested is that restaurants in the city (including Gourmet Bites) are cited for health code violations at the same 3% baseline rate. The test statistic I used to measure evidence against the null hypothesis is the number of health code violations observed in the 50 inspections, which is 8. After calculating a p-value of 0.00022, I determined that this value is significantly lower that the common significance level of 0.05, therefore there is evidence to reject the null hypothesis which suggests that Gourmet Bites has a significantly higher rate of health code violations compared to the citywide average of 3%. 
+
+#  Problem 3
+```{r, echo=FALSE}
+# Set seed 
+set.seed(789)
+
+# Observed counts
+observed_counts <- c(Group1 = 85, Group2 = 56, Group3 = 59, Group4 = 27, Group5 = 13)
+
+# Population proportions
+expected_distribution <- c(Group1 = 0.30, Group2 = 0.25, Group3 = 0.20, Group4 = 0.15, Group5 = 0.10)
+
+total_jurors <- sum(observed_counts)  # Total jurors selected
+
+# Expected counts
+expected_counts <- expected_distribution * total_jurors
+
+tibble(Group = names(observed_counts), Observed = observed_counts, Expected = expected_counts)
+
+# Calculate chi-squared 
+chi_squared_statistic <- function(observed, expected) {
+  sum((observed - expected)^2 / expected)
+}
+
+# Calculate observed chi-squared 
+observed_chi2 <- chi_squared_statistic(observed_counts, expected_counts)
+observed_chi2
+
+# Simulations number
+num_simulations <- 100000
+
+# Simulate chi-square statistics 
+chi2_sim <- do(num_simulations) * {
+  simulated_counts <- rmultinom(1, total_jurors, expected_distribution)
+  this_chi2 <- chi_squared_statistic(simulated_counts, expected_counts)
+  c(chi2 = this_chi2)
+}
+
+# Plot chi-square distribution
+ggplot(chi2_sim) + 
+  geom_histogram(aes(x = chi2), bins = 50, fill = "skyblue", color = "black") + geom_vline(xintercept = observed_chi2, color = "red", linetype = "solid") +
+  labs(title = "Simulated Chi-Square Distribution Under Null Hypothesis",x = "Chi-Square Statistic",y = "Frequency")
+
+# Calculate p-value
+p_value <- mean(chi2_sim$chi2 >= observed_chi2)
+p_value
+```
+The null hypothesis (H₀) is that the distribution of jurors empaneled by the judge matches the county’s population proportions and the alternative hypothesis (H₁) is that the distribution of jurors empaneled by the judge is different from the county’s population proportions. For the test statistic, I used the chi-square goodness-of-fit test and compared the observed jury composition with the expected distribution based on county demographics. The chi-square statistic I calculated was 12.42639 and by looking at the expected vs observed counts, it can be interpreted that Groups 1 and 3 have more jurors than expected, while Groups 2, 4 ,and 5 have fewer than expected. The p-value I calculated was 0.01513 and since this value is less than the common significance level of 0.05, the null hypothesis is rejected, therefore suggesting that the distribution of jurors selected by the judge is significantly different from the county’s population proportions. 
+
+The significant difference in distribution of jurors could suggest systematic bias in jury selection, however other factors could also be involved. For example, some groups may have may be excused at a higher rate because being non-citizens, disabled, or have responsibilities such as caregiving, finances, work exemptions, and more. More factors include variation within response rates to jury calls and socioeconomic or geographic barriers. To investigate the issue further, the court could examine which groups are more frequently excused and assess how peremptory challenges are called, compare this judge’s jury selections with other judges.
+
+#  Problem 4
+## Part A
+```{r, echo=FALSE}
+# Import sentences 
+brown_sentences <- readLines("brown_sentences.txt")
+
+
+# Import letter frequency data
+letter_frequencies <- read.csv("letter_frequencies.csv")
+letter_frequencies$Probability <- letter_frequencies$Probability / sum(letter_frequencies$Probability)
+
+# Function to calculate chi-squared 
+calculate_chi_squared <- function(sentence, freq_table) {
+  clean_sentence <- toupper(gsub("[^A-Za-z]", "", sentence))
+  observed_counts <- table(factor(strsplit(clean_sentence, "")[[1]], levels = freq_table$Letter))
+  total_letters <- sum(observed_counts)
+  expected_counts <- total_letters * freq_table$Probability
+  chi_squared_stat <- sum((observed_counts - expected_counts)^2 / expected_counts)
+  return(chi_squared_stat)
+}
+
+# Calculate chi-squared per sentence
+null_chi_squared <- sapply(brown_sentences, calculate_chi_squared, freq_table = letter_frequencies)
+
+# Plot null distribution
+ggplot(data.frame(chi_squared = null_chi_squared), aes(x = chi_squared)) +
+  geom_histogram(binwidth = 1, fill = "lightblue", color = "black") +
+  labs(title = "Null Distribution of Chi-Squared Statistics",
+       x = "Chi-Squared Statistic",
+       y = "Frequency")
+```
+This distribution represents the range of chi-squared values that might be expected to be seen in normal English sentences based on the predefined letter frequency distribution.
+
+## Part B
+```{r, echo=FALSE}
+# Import the test sentences
+
+test_sentences <- c(
+  "She opened the book and started to read the first chapter, eagerly anticipating what might come next.",
+  "Despite the heavy rain, they decided to go for a long walk in the park, crossing the main avenue by the fountain in the center.",
+  "The museum’s new exhibit features ancient artifacts from various civilizations around the world.",
+  "He carefully examined the document, looking for any clues that might help solve the mystery.",
+  "The students gathered in the auditorium to listen to the guest speaker’s inspiring lecture.",
+  "Feeling vexed after an arduous and zany day at work, she hoped for a peaceful and quiet evening at home, cozying up after a quick dinner with some TV, or maybe a book on her upcoming visit to Auckland.",
+  "The chef demonstrated how to prepare a delicious meal using only locally sourced ingredients, focusing mainly on some excellent dinner recipes from Spain.",
+  "They watched the sunset from the hilltop, marveling at the beautiful array of colors in the sky.",
+  "The committee reviewed the proposal and provided many points of useful feedback to improve the project’s effectiveness.",
+  "Despite the challenges faced during the project, the team worked tirelessly to ensure its successful completion, resulting in a product that exceeded everyone’s expectations."
+)
+
+# Calculate chi-squared statistics 
+test_chi_squared <- sapply(test_sentences, calculate_chi_squared, freq_table = letter_frequencies)
+
+# Calculate p-values
+p_values <- sapply(test_chi_squared, function(stat) mean(null_chi_squared >= stat))
+
+# Make summary table
+results <- tibble(
+  Sentence = paste("Sentence", 1:10),
+  Chi_Squared = round(test_chi_squared, 3),
+  P_Value = round(p_values, 3)
+)
+
+results
+
+watermarked_sentence_index <- which.min(p_values)
+watermarked_sentence <- test_sentences[watermarked_sentence_index]
+
+```
+The sentence that has been produced by an LLM, but watermarked by asking the LLM to subtly adjust its frequency distribution over letters is "Feeling vexed after an arduous and zany day at work, she hoped for a peaceful and quiet evening at home, cozying up after a quick dinner with some TV, or maybe a book on her upcoming visit to Auckland."
+
+The chi-squared test measures how much the observed letter frequencies deviate from the expected frequencies in typical English text. I calculated a high chi-squared value of 96.453 for this sentence, meaning that there was a large discrepancy between observed and expected frequencies. Since the low p-value of 0.009 is significantly below the common significance level of 0.05, it suggests the sentence does not conform to typical English letter frequencies.
+
+
